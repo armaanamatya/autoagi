@@ -177,6 +177,96 @@ def inject_invariants(design_text: str, invariants: list[str]) -> str:
     return design_text.replace(INVARIANT_MARKER, block)
 
 
+def inject_covers(design_text: str, covers: list[str]) -> str:
+    """Insert named cover points at the %INVARIANTS% marker (vacuity checks:
+    a proof that never covers an interesting state may be trivially true)."""
+    if INVARIANT_MARKER not in design_text:
+        raise ValueError(f"design has no '{INVARIANT_MARKER}' marker")
+    block = "\n".join(
+        [INVARIANT_MARKER, "    // reachability witnesses (vacuity check, not a proof obligation)"]
+        + [f"    always @(posedge clk) if (f_past_valid) cover ({c});" for c in covers]
+    )
+    return design_text.replace(INVARIANT_MARKER, block)
+
+
+def inject_invariants_and_covers(design_text: str, invariants: list[str], covers: list[str]) -> str:
+    """Both `inject_invariants` and `inject_covers` replace the single
+    %INVARIANTS% marker, so checking vacuity of an *accepted* proof (its
+    invariants held as constraints, cover points as the reachability probe)
+    needs them combined into one substitution."""
+    if INVARIANT_MARKER not in design_text:
+        raise ValueError(f"design has no '{INVARIANT_MARKER}' marker")
+    lines = [INVARIANT_MARKER]
+    if invariants:
+        lines.append("    // accepted strengthening invariants (solver-checked)")
+        lines += [f"    always @(posedge clk) if (f_past_valid) assert ({inv});" for inv in invariants]
+    if covers:
+        lines.append("    // reachability witnesses (vacuity check, not a proof obligation)")
+        lines += [f"    always @(posedge clk) if (f_past_valid) cover ({c});" for c in covers]
+    return design_text.replace(INVARIANT_MARKER, "\n".join(lines))
+
+
+def make_cover_job(design_text: str, top: str, workdir: Path, depth: int = 20, engine: str = "smtbmc") -> Path:
+    """Like make_sby_job but `mode cover`: find a witness trace reaching each
+    cover() point instead of proving assertions hold everywhere."""
+    workdir.mkdir(parents=True, exist_ok=True)
+    src = workdir / f"{top}.sv"
+    src.write_text(design_text, encoding="utf-8")
+
+    sby = workdir / f"{top}.sby"
+    sby.write_text(
+        "\n".join(
+            [
+                "[options]",
+                "mode cover",
+                f"depth {depth}",
+                "",
+                "[engines]",
+                engine,
+                "",
+                "[script]",
+                f"read -formal -DFORMAL {top}.sv",
+                f"prep -top {top}",
+                "",
+                "[files]",
+                f"{top}.sv",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return sby
+
+
+_COVER_REACHED_RE = re.compile(r"Reached cover statement .*?\b(\d+)\.\d+-\d+\.\d+\b.*?in step (\d+)")
+_COVER_LINE_RE = re.compile(r"Reached cover statement.*?:(\d+)\.")
+
+
+def check_vacuity(base_design_text: str, top: str, covers: list[str], invariants: list[str] | None = None,
+                   depth: int = 20, timeout_s: int = 300, engine: str = "smtbmc") -> dict[str, object]:
+    """Run mode-cover on base_design_text + accepted invariants (held as
+    constraints, same as the real proof) + named cover() points, and report
+    per cover expression whether a solver found a reachable witness. A
+    'PASS' proof whose interesting states are all unreached is vacuous."""
+    design = inject_invariants_and_covers(base_design_text, invariants or [], covers)
+    job_dir = RESULTS_DIR / f"{top}_vacuity"
+    sby_file = make_cover_job(design, top, job_dir, depth=depth, engine=engine)
+    result = run_sby(sby_file, timeout_s=timeout_s)
+
+    # Map injected cover() lines back to which expression they belong to.
+    lines = design.splitlines()
+    cover_line_of: dict[int, str] = {}
+    ci = 0
+    for i, ln in enumerate(lines, start=1):
+        if "cover (" in ln and ci < len(covers):
+            cover_line_of[i] = covers[ci]
+            ci += 1
+
+    reached_lines = {int(m) for m in _COVER_LINE_RE.findall(result.log)}
+    reached = {expr: (lineno in reached_lines) for lineno, expr in cover_line_of.items()}
+    return {"status": result.status, "reached": reached, "log_tail": summarize_log(result.log), "elapsed_s": result.elapsed_s}
+
+
 _ASSERT_LOC_RE = re.compile(r"Assert failed in \w+: \S+?\.sv:(\d+)")
 
 

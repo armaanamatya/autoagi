@@ -168,3 +168,74 @@ Chronological log of what was built and why. Times are local (PT).
   project. Demo line: the failure signal itself is machine-verified by two
   independent sound checkers (SMT model checker at RTL, Lean kernel at the
   bitvector-algebra level).
+
+## ~19:00 — Obfuscation ablation (ruling out memorization)
+- Sharpened self-critique: benchmark names (`fifo`, `credits`, `token_ring`)
+  and idioms (extra-MSB wrap-bit FIFO, one-hot arbiter, credit conservation)
+  are widely published SymbiYosys tutorial patterns — a live Exa sweep
+  turned up multiple independent GitHub repos and a Stack Overflow post
+  using the identical idioms. Can't fully rule out pattern recognition vs.
+  genuine derivation from the spoiler-comment fix alone.
+- `benchmarks_obfuscated/`: byte-for-byte structural copies of all six
+  designs, every module/signal/parameter name replaced by a generic token
+  (`fifo`→`modD`, `wptr`/`rptr`→`ptrX`/`ptrY`, `f_count`→`ghost0`,
+  `credits`→`resX`, ...), every descriptive comment stripped. Only the
+  mandatory `// %INVARIANTS%` marker kept verbatim (harness requirement).
+  `ablation_obfuscated.py` runs `hunt()` on all six standalone (no changes
+  to the harness or the original benchmarks).
+- **Result: 6/6 closed, matching or beating the named-benchmark iteration
+  count on every design** (fifo 2→1, mult 2→1, rest unchanged). The
+  obfuscated multiplier's invariant is a *different*, independently valid
+  width-safe strengthening (8-bit mask + a remaining-bits helper fact) from
+  the named-version answer (32-bit padding) — evidence of re-derivation,
+  not string recall. Strongest single rebuttal to the "easy/memorized
+  dataset" critique so far: full name+comment stripping caused zero
+  regression. Written up in PITCH.md and README.md.
+
+## ~19:20 — Reward-hacking probe + a harder benchmark, characterized honestly
+- **Track 3, executed, not just claimed:** the real gap in "the solver
+  can't be gamed" isn't false invariants (base-case FAIL catches those) —
+  it's *vacuous* ones. Added `inject_covers` / `check_vacuity` (mode-cover
+  reachability) to `sby_runner.py`, plus `inject_invariants_and_covers` to
+  check an accepted proof's invariants-as-constraints alongside a
+  reachability witness in one job.
+- `vacuity_check.py`: ran on all six accepted proofs (invariants held as
+  constraints, one or two named interesting states per design — mult's
+  `done` is the sharpest, since its whole spec is gated by `if (done)
+  assert(...)`). **All 8 checks across 6 benchmarks: REACHED.** None
+  vacuous. (One false-alarm en route: `cover(cnt==10)` on `counter` came
+  back UNREACHED at depth=12 — an off-by-one margin bug in the test's own
+  depth budget, not a real finding; fixed by lowering the target, confirmed
+  it was a test artifact.)
+- `adversarial_probe.py`: constructed the actual cheat by hand on
+  `token_ring` — replaced the real invariant with a persistent
+  `always @(posedge clk) assume (req == 4'b0)`. Public score (sby verdict):
+  **PASS in 1.1s**. Hidden score (`cover(gnt != 4'b0)`): **UNREACHED** — no
+  grant ever fires, the proof is hollow. 100% public/hidden divergence,
+  reproduced on purpose — exactly the brief's own "reward-hacking probe"
+  project pattern, run against ourselves. (First attempt used `initial
+  assume`, the idiom every benchmark already uses for reset — didn't cheat
+  at all, since it only pins step 0; had to switch to a persistent assume
+  to actually break the proof. Worth noting: the naive version of this
+  attack doesn't even work.) Confirmed the real hunt loop has no code path
+  to this attack: `inject_invariants()` hardcodes `assert` unconditionally.
+- **mult8, characterized decisively:** `mult8_direct.py` hands the solver
+  the width-8 scaling of `mult`'s known-correct invariant directly, no LLM
+  search. **Still TIMEOUT at 300s.** Isolates the bottleneck cleanly: not a
+  search failure, a genuine SMT nonlinear-arithmetic scalability wall in
+  the induction step (matches the earlier solver sweep — bitwuzla /
+  boolector / smtbmc all stall by induction depth ~3-4 regardless of
+  engine). Could have "closed" this cheaply by shrinking proof depth below
+  what's needed to reach `done` — declined, since that's exactly the
+  vacuous-PASS failure mode from the probe above.
+- Live Exa sweep for real next-tier benchmarks turned up genuine
+  candidates: YosysHQ's own `IVY` `split_fifo` example (authors' own docs:
+  both k-induction *and* PDR fail to close in reasonable time), a
+  currently-open k-induction case in `billdmar/fifo-verification-suite`'s
+  `async_fifo`, and a stranger's live, unresolved formal-verification
+  question on Stack Overflow. Logged as future work, not attempted tonight
+  (async/multi-clock designs don't fit the harness's single-clock
+  assumption without real plumbing).
+- All new capability is additive: no changes to the accepted-proof harness
+  path, the original benchmarks, or the promoted prompt. Written up in
+  PITCH.md and README.md.
