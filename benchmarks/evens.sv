@@ -1,7 +1,5 @@
-// Counter that steps by 2 from 0 (mod 256). The property "cnt != 5" is true
-// (cnt is always even) but NOT inductive: assuming only cnt != 5, the solver can
-// place cnt = 3 in the induction step and reach 5. The strengthening invariant
-// the hunter must find is that cnt stays even (cnt[0] == 1'b0).
+// Counter that steps by 2 from 0 (mod 256). The safety property below is true
+// but not inductive on its own — closing the proof requires strengthening.
 module evens (
     input wire clk,
     input wire rst,

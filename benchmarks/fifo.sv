@@ -1,9 +1,7 @@
 // Classic pointer-based FIFO: full/empty computed purely from the pointers
 // (with a wrap bit), plus a ghost occupancy counter in the formal block.
-// The assertions relating the ghost counter to full/empty are not inductive
-// on their own — the induction step can pick unrelated wptr/rptr/f_count.
-// The strengthening invariant the hunter must find is
-//   f_count == wptr - rptr
+// The assertions below are true but not inductive on their own — closing the
+// proof requires strengthening.
 module fifo (
     input wire clk,
     input wire rst,

@@ -104,3 +104,53 @@ Chronological log of what was built and why. Times are local (PT).
   the challenger was visibly leaner (5 invariants proposed vs the champion's 8),
   which the score doesn't reward — parsimony tiebreak and harder benchmarks are
   the logical next generation of the metric itself.
+
+## ~17:00 — Self-critique pass (red-team before the judges do)
+- **Found and fixed an answer leak:** benchmark header comments stated the needed
+  invariant, and full design text (comments included) goes to the LLM. Stripped
+  all five spoiler comments and re-ran the entire suite clean: **still 6/6**
+  (6 total iterations; mult now takes 2 with a live eviction of a false a_sh
+  range fact). The invariants are re-derived from design structure alone.
+- **Ran the adversarial baseline ourselves:** `abc pdr` (IC3) proves all six
+  original benchmarks in 2–5 s with no LLM — "solver alone: 1/6" is true only
+  for k-induction/smtbmc and must be framed accordingly. Disclosed rather than
+  discovered by a judge. On the new 16×16 multiplier, PDR ran 15+ minutes
+  without a proof (vs 5 s at 4-bit) — the separation experiment.
+- Added `--engine` support (any sby engine, e.g. `abc pdr`) to the runner.
+
+## ~17:20 — Robustness + the autonomy experiment
+- **Fixed a real harness bug the mult16 attempt exposed:** sby child processes
+  inherit pipe handles on Windows, so pipe-based timeouts hang forever. run_sby
+  now writes to a log file, kills the whole process tree on deadline, and
+  returns a first-class TIMEOUT status (handled in the hunt loop: drop the
+  trial, tell the LLM the constraints were too expensive).
+- Added `mult8.sv` (8×8) as the difficulty hedge between mult and mult16.
+- **Parsimony-aware evolution fitness** (1000/proof − 10/iteration − 1/invariant):
+  every extra invariant is an extra proof obligation and an extra line a human
+  must review, so a leaner certificate at equal coverage is strictly better.
+  This de-saturates the metric that tied generation 1 — rerunning evolution
+  to test for a fully autonomous promotion.
+
+## ~18:20 — AUTONOMOUS PROMOTION (generation 2)
+- PDR baselines locked: `abc pdr` TIMEOUT (300 s) on **both** mult8 and mult16
+  (vs 2–5 s on every small benchmark). The width wall is measured, not asserted.
+- Evolution generation 2, under the parsimony metric, end-to-end autonomous:
+  - Claude **wrote** the challenger prompt from the ledger evidence. Its additions
+    cite the actual logged failures: a no-redundant-restatement rule quoting the
+    real `f_count == wptr - rptr` triple, a one-nonlinear-term rule quoting the
+    real over-masked mult8 candidate that caused a TIMEOUT, and a
+    cut-on-TIMEOUT history rule.
+  - Challenger closed 3/3 hill-climb proofs with **one invariant each** (3 total
+    vs the champion's 10). Score 2967 > 2960.
+  - **Holdout gate passed 2/2** (token_ring and mult, one iteration each).
+  - **PROMOTED as hunter_v3.md** — machine-authored, machine-scored,
+    machine-gated. The only human contribution this generation: the fitness
+    function.
+- Evolution run 1 of the day had been rejected by an over-strict placeholder
+  gate (exactly-once; `str.format` tolerates repeats) — relaxed to at-least-once.
+- mult8/mult16 solver frontier: our route finds the correct loop invariant but
+  yices times out verifying 16-bit nonlinear induction steps at depth 6; at
+  depth 2 induction fails on window-start garbage states (`busy && done`).
+  Solver sweep (bitwuzla/boolector, varying depth) in progress — honest status:
+  the multiplier separation is PDR-fails-vs-we-find-the-invariant, with the
+  final solver check still open at width 8+.

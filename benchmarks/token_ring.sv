@@ -1,7 +1,5 @@
-// Rotating one-hot token arbiter. Grants are mutually exclusive because the
-// token is one-hot — but "grants are mutually exclusive" alone is not inductive:
-// the induction step can start from token = 4'b0011. The strengthening invariant
-// the hunter must find is $onehot(token).
+// Rotating token arbiter. The mutual-exclusion property below is true but not
+// inductive on its own — closing the proof requires strengthening.
 module token_ring (
     input wire clk,
     input wire rst,
