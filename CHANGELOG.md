@@ -82,3 +82,25 @@ Chronological log of what was built and why. Times are local (PT).
   Claude Pro/Max OAuth — blocked only on Claude "extra usage" balance (Pi
   bills per-token outside plan limits). `claude` CLI backend remains default.
 - README cleanup (deduplicated fifo paragraph).
+
+## ~15:50 — Open-sourced + autonomous evolution
+- PR #1 merged to github.com/armaanamatya/autoagi (open-source requirement).
+- `autoagi/evolve.py`: one-command Evo-style generation loop — Claude mutates
+  the champion prompt guided by the failure ledger; champion vs challenger
+  scored on the hill-climb subset by the sound verifier; strict-improvement
+  promotion gated by a holdout generalization check the optimizer never sees.
+- `demo.ps1`: canned 3-minute demo (prove → hunt → ledger → evolve).
+- README: fresh-clone setup instructions.
+
+## ~16:15 — First live evolution generation
+- Run 1: challenger REJECTED by the format gate (literal Verilog braces broke
+  the template contract) — the backpressure check caught a malformed mutation
+  before any solver/LLM budget was spent. Added a deterministic repair pass
+  (escape all braces, restore placeholders) to separate "bad mutation" from
+  "formatting accident".
+- Run 2 (end-to-end): mutation OK → champion 297 vs challenger 297 on the
+  hill-climb subset → **champion retained** (strict-improvement rule; no churn
+  on ties). Honest finding: the metric is saturated (3/3 closed, 1 iter each);
+  the challenger was visibly leaner (5 invariants proposed vs the champion's 8),
+  which the score doesn't reward — parsimony tiebreak and harder benchmarks are
+  the logical next generation of the metric itself.
