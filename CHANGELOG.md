@@ -154,3 +154,17 @@ Chronological log of what was built and why. Times are local (PT).
   Solver sweep (bitwuzla/boolector, varying depth) in progress — honest status:
   the multiplier separation is PDR-fails-vs-we-find-the-invariant, with the
   final solver check still open at width 8+.
+
+## ~18:35 — Lean 4 kernel-checked receipts
+- `lean/FifoEviction.lean`: the fifo eviction story re-verified in Lean 4 via
+  `bv_decide` (Lean ≥ 4.12: bundled CaDiCaL SAT solver + kernel-verified LRAT
+  certificate — the propose-untrusted / check-sound pattern in miniature).
+  Proved: the evicted candidate `(wptr - rptr) <= 8` is false (4-bit and
+  32-bit Verilog-extension widths); the accepted `f_count == wptr - rptr` is
+  inductive (push/pop/push+pop, unconditionally); `full`/`empty` pointer
+  encodings correct given the invariant. `#print axioms` guard shows the
+  exact trust base (three standard axioms + per-proof native LRAT axiom).
+- Installed elan + Lean 4.32.0 stable; runs standalone, no mathlib, no lake
+  project. Demo line: the failure signal itself is machine-verified by two
+  independent sound checkers (SMT model checker at RTL, Lean kernel at the
+  bitvector-algebra level).

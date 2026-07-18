@@ -81,6 +81,15 @@ That's the whole thesis in one anecdote: an LLM plus an empirical verifier would
 have shipped a wrong invariant; an LLM plus a sound verifier turned the same
 mistake into a one-round repair.
 
+**Kernel-checked, independently.** `lean/FifoEviction.lean` re-verifies this exact
+story in Lean 4 via `bv_decide` (bundled CaDiCaL SAT solver + kernel-verified LRAT
+certificate — the same propose-untrusted / check-sound pattern as autoagi, one
+level down): the evicted candidate is proved false at both the pointers' native
+width and Verilog's 32-bit extension width, and the accepted invariant is proved
+inductive across push/pop/push+pop unconditionally. `#print axioms` shows the
+exact trust base — no `sorry`, no smuggled axioms. Two independent sound
+verifiers, same verdict.
+
 ## Why this maps to the brief
 
 | Brief concept | Here |
