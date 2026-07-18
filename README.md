@@ -91,6 +91,12 @@ caught by the sound checker and evicted, which no empirical scorer would have ca
 | mult8 (8×8)  | UNKNOWN | open  | 1     | finds the same loop invariant in 1 iteration; the *solver-side* induction check exceeds our 300 s budget — the measured frontier |
 | mult16 (16×16) | UNKNOWN | open | —    | same frontier. For scale: `abc pdr` proves every small benchmark in 2–5 s but **times out (300 s) on both mult8 and mult16** |
 
+`mult8_direct.py` isolates the bottleneck: handing the solver the *exact*
+correct invariant directly (skipping the LLM search) still **TIMEOUTs at
+300s**. Not a search failure — a genuine SMT nonlinear-arithmetic
+scalability wall in the induction step, present even with the right answer
+in hand.
+
 K-induction alone proves 1/6; with the loop, **6/6**, each in 1–2 LLM iterations
 (numbers from the clean run *after* stripping spoiler comments from the benchmark
 files — see CHANGELOG, self-critique pass). Every solver run is a ledger row in
@@ -114,6 +120,50 @@ Two details worth noticing in the ledger:
 - **The agent learning the domain's sharp edge (mult):** after the width warning,
   Claude wrote the multiplier invariant as `32'd0 + acc + a_sh * b_rem == 32'd0 + a0 * b0`
   — deliberately padding to 32-bit arithmetic to make the equation exact.
+
+## Obfuscation ablation — ruling out memorization
+
+Benchmark names like `fifo.sv` and idioms like the extra-MSB wrap bit are
+widely published SymbiYosys tutorial patterns, so a fair challenge is
+"maybe Claude just recognizes the pattern, not the design." Tested it:
+`benchmarks_obfuscated/` has structural copies of all six designs with every
+module/signal/parameter name replaced by a generic token (`fifo`→`modD`,
+`wptr`/`rptr`→`ptrX`/`ptrY`, `f_count`→`ghost0`, `credits`→`resX`, ...) and
+every descriptive comment stripped — only the mandatory `// %INVARIANTS%`
+marker survives.
+
+```powershell
+python ablation_obfuscated.py
+```
+
+**Result: 6/6 still closed, matching or beating the named-benchmark
+iteration count on every design** (fifo 2→1, mult 2→1). The obfuscated
+multiplier's invariant is a *different*, independently valid width-safe
+strengthening from the named-version answer — not a memorized string, a
+re-derivation. Full table and discussion in `PITCH.md`.
+
+## Reward-hacking probe
+
+The solver can't be fooled by a *false* invariant (base-case FAIL catches
+it) — but it can, in principle, be fooled by a *vacuous* one: constrain away
+the interesting states and k-induction reports PASS having proved nothing.
+We built that attack on purpose and checked whether our harness admits it.
+
+```powershell
+python adversarial_probe.py   # constructs the cheat, shows the divergence
+python vacuity_check.py       # confirms none of the real 6 accepted proofs are vacuous
+```
+
+The cheat (`always @(posedge clk) assume (req == 4'b0)` on `token_ring`,
+replacing the real invariant): raw sby verdict **PASS in 1.1s**; a solver
+witness search for `cover(gnt != 4'b0)` comes back **UNREACHED** — no grant
+ever fired, the proof is hollow. Full 100% divergence between the public
+score (sby PASS) and the hidden score (reachability). Our real hunt loop
+can't do this: `inject_invariants()` hardcodes every candidate as `assert`,
+never `assume` — no code path exists from an LLM proposal to this attack.
+Separately, `vacuity_check.py` confirms all six accepted proofs (including
+mult's `done`-gated spec, the sharpest case) exercise real, reachable
+behavior. Full writeup in `PITCH.md`.
 
 ## Kernel-checked receipts (Lean 4)
 
