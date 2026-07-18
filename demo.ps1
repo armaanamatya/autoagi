@@ -12,5 +12,8 @@ python -m autoagi.cli hunt benchmarks\mult.sv
 Pause-Step "3/4  The receipts: every solver verdict, timestamped (note the fifo eviction rows)"
 Get-Content results\ledger.tsv | Select-Object -Last 20
 
-Pause-Step "4/4  The improvement loop: mutate prompt -> score vs champion -> holdout gate -> promote"
+Pause-Step "4/5  The improvement loop: mutate prompt -> score vs champion -> holdout gate -> promote"
 python -m autoagi.evolve
+
+Pause-Step "5/5  Second sound checker: the fifo eviction, kernel-checked in Lean 4"
+& "$env:USERPROFILE\.elan\bin\lean.exe" lean\FifoEviction.lean
