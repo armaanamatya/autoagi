@@ -1,19 +1,19 @@
-// Shift-add multiplier, 4x4 -> 8 bit, with stall (backpressure). The
-// end-to-end property "when done, acc == a0 * b0" says nothing about the
-// machine mid-flight, so induction fails from any bogus mid-state — closing
-// the proof requires strengthening.
-module mult (
+// Shift-add multiplier, 16x16 -> 32 bit, with stall (backpressure). Same
+// structure as mult.sv at a width where bit-level model checking struggles.
+// The end-to-end property is true but not inductive on its own — closing the
+// proof requires strengthening.
+module mult16 (
     input wire clk,
     input wire rst,
     input wire start,
-    input wire stall,   // backpressure: hold state while busy
-    input wire [3:0] a_in,
-    input wire [3:0] b_in
+    input wire stall,
+    input wire [15:0] a_in,
+    input wire [15:0] b_in
 );
-    reg [7:0] acc;    // accumulated partial product
-    reg [7:0] a_sh;   // a, shifted left each step
-    reg [3:0] b_rem;  // remaining bits of b
-    reg [3:0] a0, b0; // operands latched at start (for the spec)
+    reg [31:0] acc;
+    reg [31:0] a_sh;
+    reg [15:0] b_rem;
+    reg [15:0] a0, b0;
     reg busy, done;
 
     always @(posedge clk) begin
@@ -22,7 +22,7 @@ module mult (
             done <= 0;
         end else if (start && !busy) begin
             acc   <= 0;
-            a_sh  <= {4'b0, a_in};
+            a_sh  <= {16'b0, a_in};
             b_rem <= b_in;
             a0    <= a_in;
             b0    <= b_in;

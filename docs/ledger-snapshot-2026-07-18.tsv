@@ -1,0 +1,75 @@
+timestamp	benchmark	iteration	action	status	solver_s	invariants
+2026-07-18T13:52:16	counter	0	baseline	PASS	2.0	-
+2026-07-18T13:52:19	evens	0	baseline	UNKNOWN	2.7	-
+2026-07-18T13:52:26	evens	1	trial	PASS	1.7	cnt[0] == 1'b0
+2026-07-18T13:52:28	fifo	0	baseline	UNKNOWN	1.9	-
+2026-07-18T13:52:40	fifo	1	trial	UNKNOWN	1.9	f_count == wptr - rptr; (wptr - rptr) <= 5'd8; f_count <= 5'd8
+2026-07-18T13:53:12	fifo	2	trial	PASS	2.2	f_count == wptr - rptr; f_count <= 5'd8; (!f_count[AW]) || (f_count[AW-1:0] == 3'd0); f_count <= 4'd8; full == (f_count[AW] && (f_count[AW-1:0] == 3'd0))
+2026-07-18T13:53:15	token_ring	0	baseline	UNKNOWN	3.0	-
+2026-07-18T13:53:23	token_ring	1	trial	PASS	1.5	$onehot(token); token == 4'b0001 || token == 4'b0010 || token == 4'b0100 || token == 4'b1000; |token
+2026-07-18T13:59:53	credits	0	baseline	UNKNOWN	1.7	-
+2026-07-18T14:00:02	credits	1	trial	PASS	2.5	credits + in_flight + occ == TOTAL; in_flight <= TOTAL; occ + in_flight <= TOTAL; credits + occ <= TOTAL
+2026-07-18T14:00:05	mult	0	baseline	UNKNOWN	2.6	-
+2026-07-18T14:00:50	mult	1	trial	PASS	19.3	!busy || (32'd0 + acc + a_sh * b_rem == 32'd0 + a0 * b0); !(busy && done); !busy || (32'd0 + acc + a_sh * b_rem <= 32'd255)
+2026-07-18T14:09:22	counter	0	baseline	PASS	1.7	-
+2026-07-18T14:09:25	credits	0	baseline	UNKNOWN	2.2	-
+2026-07-18T14:09:39	credits	1	trial	PASS	2.3	credits + in_flight + occ == TOTAL; in_flight <= TOTAL; occ <= TOTAL; credits <= TOTAL
+2026-07-18T14:09:41	evens	0	baseline	UNKNOWN	1.3	-
+2026-07-18T14:09:48	evens	1	trial	PASS	1.7	cnt[0] == 1'b0
+2026-07-18T14:09:50	fifo	0	baseline	UNKNOWN	2.2	-
+2026-07-18T14:10:03	fifo	1	trial	UNKNOWN	2.3	f_count == (wptr - rptr); (wptr - rptr) <= DEPTH; f_count <= DEPTH
+2026-07-18T14:10:19	fifo	2	trial	PASS	2.8	f_count == (wptr - rptr); f_count <= DEPTH; f_count <= 4'd8; (wptr - rptr) <= 4'd8
+2026-07-18T14:10:22	counter	0	baseline	PASS	2.1	-
+2026-07-18T14:10:24	credits	0	baseline	UNKNOWN	2.2	-
+2026-07-18T14:10:35	credits	1	trial	PASS	2.3	credits + in_flight + occ == TOTAL; in_flight <= TOTAL; credits + occ <= TOTAL; in_flight + occ <= TOTAL
+2026-07-18T14:10:37	evens	0	baseline	UNKNOWN	1.8	-
+2026-07-18T14:10:43	evens	1	trial	PASS	1.0	cnt[0] == 1'b0
+2026-07-18T14:10:45	fifo	0	baseline	UNKNOWN	1.4	-
+2026-07-18T14:10:59	fifo	1	trial	PASS	1.3	f_count == wptr - rptr; wptr - rptr == f_count; rptr + f_count == wptr; f_count[AW] == 1'b0 || f_count[AW-1:0] == {AW{1'b0}}
+2026-07-18T14:11:51	mult	0	baseline	UNKNOWN	2.4	-
+2026-07-18T14:12:41	mult	1	trial	PASS	27.6	!busy || ((acc + a_sh * b_rem) == (a0 * b0)); !(busy && done); !done || (acc == a0 * b0)
+2026-07-18T14:12:44	token_ring	0	baseline	UNKNOWN	2.5	-
+2026-07-18T14:12:49	token_ring	1	trial	PASS	1.6	$onehot(token)
+2026-07-18T14:19:57	evens	0	baseline	UNKNOWN	2.7	-
+2026-07-18T14:20:05	evens	1	trial	PASS	2.2	cnt[0] == 1'b0
+2026-07-18T14:20:07	fifo	0	baseline	UNKNOWN	2.5	-
+2026-07-18T14:20:21	fifo	1	trial	PASS	2.6	f_count == wptr - rptr; (f_count[AW] == 1'b0) || (f_count[AW-1:0] == {AW{1'b0}}); empty == (f_count == 0)
+2026-07-18T14:20:23	credits	0	baseline	UNKNOWN	2.1	-
+2026-07-18T14:20:35	credits	1	trial	PASS	2.7	credits + in_flight + occ == TOTAL; in_flight <= TOTAL; occ <= TOTAL; credits <= TOTAL
+2026-07-18T14:20:38	evens	0	baseline	UNKNOWN	2.5	-
+2026-07-18T14:20:47	evens	1	trial	PASS	2.4	cnt[0] == 1'b0
+2026-07-18T14:20:50	fifo	0	baseline	UNKNOWN	2.7	-
+2026-07-18T14:21:05	fifo	1	trial	PASS	2.7	f_count == wptr - rptr
+2026-07-18T14:21:08	credits	0	baseline	UNKNOWN	2.4	-
+2026-07-18T14:21:16	credits	1	trial	PASS	2.4	credits + in_flight + occ == TOTAL; in_flight <= TOTAL; occ <= TOTAL
+2026-07-18T14:25:42	counter	0	baseline	PASS	2.6	-
+2026-07-18T14:25:45	credits	0	baseline	UNKNOWN	2.9	-
+2026-07-18T14:25:58	credits	1	trial	PASS	2.8	credits + in_flight + occ == TOTAL; in_flight <= TOTAL; credits <= TOTAL; occ <= TOTAL
+2026-07-18T14:26:01	evens	0	baseline	UNKNOWN	3.0	-
+2026-07-18T14:26:11	evens	1	trial	PASS	2.5	cnt[0] == 1'b0; (cnt & 8'd1) == 8'd0; cnt != 8'd5 && cnt != 8'd7
+2026-07-18T14:26:13	fifo	0	baseline	UNKNOWN	2.3	-
+2026-07-18T14:26:26	fifo	1	trial	PASS	2.4	f_count == wptr - rptr; (wptr - rptr) == 4'd0 || (wptr - rptr) == 4'd8 || !f_count[AW]; f_count[AW] == 1'b0 || f_count[AW-1:0] == 3'b000; empty == ((wptr - rptr) == 4'd0)
+2026-07-18T14:26:29	mult	0	baseline	UNKNOWN	3.0	-
+2026-07-18T14:27:06	mult	1	trial	UNKNOWN	6.8	!busy || (acc + a_sh * b_rem == a0 * b0); !(busy && done); !busy || (b_rem <= 4'd1) || (a_sh[7] == 1'b0)
+2026-07-18T14:28:08	mult	2	trial	PASS	39.2	!busy || (acc + a_sh * b_rem == a0 * b0); !(busy && done); !done || (acc == a0 * b0)
+2026-07-18T14:28:12	token_ring	0	baseline	UNKNOWN	4.3	-
+2026-07-18T14:28:27	token_ring	1	trial	PASS	3.6	token == 4'b0001 || token == 4'b0010 || token == 4'b0100 || token == 4'b1000; (token & (token - 4'b0001)) == 4'b0000 && token != 4'b0000; gnt == (req & token)
+2026-07-18T14:52:42	mult8	0	baseline	UNKNOWN	2.6	-
+2026-07-18T14:58:04	mult8	1	trial	TIMEOUT	300.8	!busy || !done; (((acc + (a_sh * b_rem)) & 16'hFFFF) == ((a0 * b0) & 16'hFFFF)) || !busy; !done || (acc == a0 * b0); !busy || (b_rem != 0) || (acc == a0 * b0)
+2026-07-18T15:03:21	mult8	2	trial	TIMEOUT	300.4	!busy || !done; !busy || (acc + a_sh * b_rem == a0 * b0); !done || (acc == a0 * b0)
+2026-07-18T15:07:27	evens	0	baseline	UNKNOWN	1.7	-
+2026-07-18T15:07:34	evens	1	trial	PASS	1.6	cnt[0] == 1'b0; (cnt & 8'd1) == 8'd0; cnt != 8'd5
+2026-07-18T15:07:35	fifo	0	baseline	UNKNOWN	1.2	-
+2026-07-18T15:07:47	fifo	1	trial	PASS	1.4	f_count == wptr - rptr; (wptr - rptr) <= 4'd8; !(f_count[3] && |f_count[2:0])
+2026-07-18T15:07:49	credits	0	baseline	UNKNOWN	2.0	-
+2026-07-18T15:08:02	credits	1	trial	PASS	1.7	credits + in_flight + occ == TOTAL; in_flight <= TOTAL; occ + in_flight <= TOTAL; credits + occ <= TOTAL
+2026-07-18T15:08:03	evens	0	baseline	UNKNOWN	1.5	-
+2026-07-18T15:08:11	evens	1	trial	PASS	1.7	cnt[0] == 1'b0
+2026-07-18T15:08:13	fifo	0	baseline	UNKNOWN	1.9	-
+2026-07-18T15:08:24	fifo	1	trial	PASS	1.7	f_count == wptr - rptr
+2026-07-18T15:08:25	credits	0	baseline	UNKNOWN	1.8	-
+2026-07-18T15:08:37	credits	1	trial	PASS	1.9	credits + in_flight + occ == TOTAL
+2026-07-18T15:08:38	token_ring	0	baseline	UNKNOWN	1.9	-
+2026-07-18T15:08:46	token_ring	1	trial	PASS	1.9	$onehot(token)
+2026-07-18T15:08:48	mult	0	baseline	UNKNOWN	1.7	-
+2026-07-18T15:09:36	mult	1	trial	PASS	22.7	!busy || (acc + a_sh * b_rem == a0 * b0); !(busy && done)

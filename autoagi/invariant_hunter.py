@@ -67,9 +67,9 @@ def hunt(design_path: Path, top: str, max_iters: int = 5, depth: int = 10, log=p
     if baseline.status == "FAIL":
         log(f"[{top}] base case fails - real counterexample, no invariant can fix this.")
         return HuntOutcome(status="FAIL", invariants=[], iterations=0, baseline=baseline)
-    if baseline.status == "ERROR":
-        log(f"[{top}] sby error - check the log:\n{summarize_log(baseline.log)}")
-        return HuntOutcome(status="ERROR", invariants=[], iterations=0, baseline=baseline)
+    if baseline.status in ("ERROR", "TIMEOUT"):
+        log(f"[{top}] sby {baseline.status} - check the log:\n{summarize_log(baseline.log)}")
+        return HuntOutcome(status=baseline.status, invariants=[], iterations=0, baseline=baseline)
 
     # UNKNOWN: induction fails -> hunt for strengthening invariants
     accepted: list[str] = []
@@ -134,6 +134,14 @@ def hunt(design_path: Path, top: str, max_iters: int = 5, depth: int = 10, log=p
             accepted += survivors
             last = result
             continue
+
+        if result.status == "TIMEOUT":
+            history.append(
+                f"- solver TIMEOUT with candidates {proposed}; the added constraints may be "
+                "too expensive (e.g. nonlinear terms) - prefer simpler/fewer invariants"
+            )
+            last = result
+            continue  # keep previously accepted set; drop this trial
 
         # UNKNOWN: base case still holds but induction fails. Find WHICH assert
         # blocks the induction step. If it's one of our own candidates, evict it:

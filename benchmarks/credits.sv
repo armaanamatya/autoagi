@@ -1,10 +1,7 @@
 // Credit-based flow control (the mechanism behind NoC / PCIe / AXI credit
 // systems). Three coupled counters: sender credits, packets in flight, receiver
-// buffer occupancy. The safety property "the receiver buffer never overflows"
-// is true but not inductive: the induction step can start from occ=8 with
-// in_flight=1 and push one more packet in. The strengthening invariant the
-// hunter must find is the conservation law
-//   credits + in_flight + occ == TOTAL
+// buffer occupancy. The safety properties below are true but not inductive on
+// their own — closing the proof requires strengthening.
 module credits (
     input wire clk,
     input wire rst,

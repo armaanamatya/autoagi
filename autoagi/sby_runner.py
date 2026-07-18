@@ -61,7 +61,7 @@ class SbyResult:
         return self.status == "UNKNOWN"
 
 
-def make_sby_job(design_text: str, top: str, workdir: Path, depth: int = 10) -> Path:
+def make_sby_job(design_text: str, top: str, workdir: Path, depth: int = 10, engine: str = "smtbmc") -> Path:
     """Write the design and a .sby file into workdir; return the .sby path."""
     workdir.mkdir(parents=True, exist_ok=True)
     src = workdir / f"{top}.sv"
@@ -76,7 +76,7 @@ def make_sby_job(design_text: str, top: str, workdir: Path, depth: int = 10) -> 
                 f"depth {depth}",
                 "",
                 "[engines]",
-                "smtbmc",
+                engine,
                 "",
                 "[script]",
                 f"read -formal -DFORMAL {top}.sv",
@@ -93,36 +93,53 @@ def make_sby_job(design_text: str, top: str, workdir: Path, depth: int = 10) -> 
 
 
 def run_sby(sby_file: Path, timeout_s: int = 300) -> SbyResult:
-    """Run sby on the given job file and classify the outcome."""
+    """Run sby on the given job file and classify the outcome.
+
+    Output goes to a log file rather than a pipe: on Windows, sby's solver
+    children inherit pipe handles, which makes pipe-based timeouts hang forever.
+    On timeout the whole process tree is killed and status is TIMEOUT.
+    """
     env_script = _find_env_script()
     start = time.monotonic()
+    logpath = sby_file.parent / f"{sby_file.stem}_run.log"
+    timed_out = False
 
-    if os.name == "nt" and env_script is not None:
-        cmd = f'call "{env_script}" && sby -f "{sby_file.name}"'
-        proc = subprocess.run(
-            cmd,
-            shell=True,
-            cwd=sby_file.parent,
-            capture_output=True,
-            text=True,
-            timeout=timeout_s,
-        )
-    else:
-        env = os.environ.copy()
-        suite_bin = _find_suite_bin()
-        if suite_bin is not None:
-            env["PATH"] = str(suite_bin) + os.pathsep + env.get("PATH", "")
-        proc = subprocess.run(
-            ["sby", "-f", sby_file.name],
-            cwd=sby_file.parent,
-            capture_output=True,
-            text=True,
-            timeout=timeout_s,
-            env=env,
-        )
+    with logpath.open("w", encoding="utf-8", errors="replace") as out:
+        if os.name == "nt" and env_script is not None:
+            proc = subprocess.Popen(
+                f'call "{env_script}" && sby -f "{sby_file.name}"',
+                shell=True,
+                cwd=sby_file.parent,
+                stdout=out,
+                stderr=subprocess.STDOUT,
+            )
+        else:
+            env = os.environ.copy()
+            suite_bin = _find_suite_bin()
+            if suite_bin is not None:
+                env["PATH"] = str(suite_bin) + os.pathsep + env.get("PATH", "")
+            proc = subprocess.Popen(
+                ["sby", "-f", sby_file.name],
+                cwd=sby_file.parent,
+                stdout=out,
+                stderr=subprocess.STDOUT,
+                env=env,
+            )
+        try:
+            proc.wait(timeout=timeout_s)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            if os.name == "nt":
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                    capture_output=True,
+                )
+            else:
+                proc.kill()
+            proc.wait()
 
     elapsed = time.monotonic() - start
-    log = (proc.stdout or "") + (proc.stderr or "")
+    log = logpath.read_text(encoding="utf-8", errors="replace")
 
     if re.search(r"DONE \(PASS", log):
         status = "PASS"
@@ -130,18 +147,20 @@ def run_sby(sby_file: Path, timeout_s: int = 300) -> SbyResult:
         status = "FAIL"
     elif re.search(r"DONE \(UNKNOWN", log):
         status = "UNKNOWN"
+    elif timed_out:
+        status = "TIMEOUT"
     else:
         status = "ERROR"
 
     # sby's own work directory sits next to the .sby file, named after the job
     workdir = sby_file.parent / sby_file.stem
-    return SbyResult(status=status, returncode=proc.returncode, elapsed_s=elapsed, log=log, workdir=workdir)
+    return SbyResult(status=status, returncode=proc.returncode or 0, elapsed_s=elapsed, log=log, workdir=workdir)
 
 
-def prove(design_text: str, top: str, label: str = "job", depth: int = 10, timeout_s: int = 300) -> SbyResult:
+def prove(design_text: str, top: str, label: str = "job", depth: int = 10, timeout_s: int = 300, engine: str = "smtbmc") -> SbyResult:
     """One-shot: write a job for design_text and run it."""
     job_dir = RESULTS_DIR / f"{top}_{label}"
-    sby_file = make_sby_job(design_text, top, job_dir, depth=depth)
+    sby_file = make_sby_job(design_text, top, job_dir, depth=depth, engine=engine)
     return run_sby(sby_file, timeout_s=timeout_s)
 
 

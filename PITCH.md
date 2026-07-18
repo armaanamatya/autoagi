@@ -112,6 +112,22 @@ the wasted work (fewer iterations, zero false candidates emitted). Both
 improvements were derived from the same trace: the ledger rows where induction
 kept failing on the agent's own candidate.
 
+**Generation 2 promoted autonomously.** Under a parsimony-aware fitness
+(every extra invariant = an extra proof obligation + an extra line a human
+reviews), the loop ran fully machine-side: Claude mutated its own prompt from
+the ledger evidence — its new rules literally quote the logged failures (the
+redundant restatement triple, the over-masked nonlinear candidate that caused a
+TIMEOUT) — the challenger closed 3/3 hill-climb proofs with **one invariant
+each** (3 vs the champion's 10, score 2967 > 2960), passed the never-seen
+holdout gate 2/2, and was **promoted as `hunter_v3.md`**. Human contribution to
+this generation: the fitness function. Nothing else.
+
+**And the adversarial baseline:** `abc pdr` (IC3) proves all six small
+benchmarks in seconds with no LLM — we disclose this up front — but times out
+(300 s) on both the 8×8 and 16×16 multipliers, where our loop still finds the
+correct textbook loop invariant in one iteration. PDR's invariants are opaque
+internal clauses either way; ours are readable, word-level certificates.
+
 ## What's next
 
 - **Scale:** real HWMCC / open-core designs instead of toys.

@@ -69,15 +69,23 @@ Output ONLY the new prompt text between these exact markers:
 
 
 def score_prompt(prompt_path: Path, label: str) -> tuple[int, int, int]:
-    """Run the hill-climb subset with the given prompt. Returns (score, closed, iters)."""
+    """Run the hill-climb subset with the given prompt. Returns (score, closed, iters).
+
+    Fitness = 1000 per proof closed, minus 10 per LLM iteration, minus 1 per
+    invariant in the final proof. The parsimony term is independently motivated:
+    every extra invariant is an extra proof obligation (solver cost) and an
+    extra line of proof artifact a human has to review — a leaner certificate
+    is a strictly better certificate at equal coverage.
+    """
     os.environ["AUTOAGI_PROMPT"] = str(prompt_path)
-    closed = iters = 0
+    closed = iters = n_invs = 0
     for top in HILLCLIMB:
         outcome = hunt(BENCH / f"{top}.sv", top, max_iters=3, log=lambda m: print(f"  [{label}] {m}"))
         closed += outcome.status == "PASS"
         iters += outcome.iterations
-    score = closed * 100 - iters
-    print(f"[{label}] closed={closed}/{len(HILLCLIMB)} iters={iters} score={score}")
+        n_invs += len(outcome.invariants)
+    score = closed * 1000 - iters * 10 - n_invs
+    print(f"[{label}] closed={closed}/{len(HILLCLIMB)} iters={iters} invariants={n_invs} score={score}")
     return score, closed, iters
 
 
@@ -106,8 +114,8 @@ def mutate(current: str) -> str:
 
 def valid_template(text: str) -> bool:
     try:
-        if any(text.count(ph) != 1 for ph in PLACEHOLDERS):
-            return False
+        if any(text.count(ph) < 1 for ph in PLACEHOLDERS):
+            return False  # str.format tolerates repeated keys, but all four must exist
         text.format(top="t", design="d", log="l", history="h")
         return True
     except (KeyError, ValueError, IndexError):
