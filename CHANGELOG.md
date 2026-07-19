@@ -239,3 +239,46 @@ Chronological log of what was built and why. Times are local (PT).
 - All new capability is additive: no changes to the accepted-proof harness
   path, the original benchmarks, or the promoted prompt. Written up in
   PITCH.md and README.md.
+
+## ~19:35 — mult8: five independent solvers, one universal wall
+- `mult8_engine_sweep.py`: reran the direct-invariant test (correct answer
+  handed to the solver, no LLM search) across every SMT backend bundled in
+  the OSS CAD Suite. **yices, bitwuzla, boolector, z3, cvc5 — all five
+  TIMEOUT at 300s.** Not one solver's quirk; a universal nonlinear-
+  arithmetic wall at width 8, present even with the exact right answer in
+  hand. Strengthens the honest-frontier claim from a single-engine result
+  to a five-way-confirmed one.
+- Also surfaced and highlighted (already present, underused): the
+  autonomous generation-2 prompt diff. `hunter_v2.md` (human, 39 lines) vs.
+  `hunter_v3.md`/`hunter.md` (Claude-authored, 63 lines, promoted after
+  beating the champion 2967 > 2960 + holdout 2/2) shows Claude adding a
+  "SOLVER-COST rules" section that quotes its own failure ledger verbatim
+  — the exact redundant-restatement triple and the exact over-masked
+  candidate that caused a real TIMEOUT. Verifiable evidence of harness
+  self-improvement, not a generic-advice diff.
+
+## ~19:50 — Tested on real, external silicon RTL (BaseJump STL)
+- Researched formal-verification benchmark suites (HWMCC = gate-level, poor
+  fit for a word-level LLM loop; found **HierSVA-DS**, a NeurIPS 2026
+  Datasets & Benchmarks Track submission — 342 real, formally-verified
+  modules from BaseJump STL with a measured 17.9% LLM-vacuity rate across
+  12 frontier models, independent validation of tonight's reward-hacking
+  probe). Cited in PITCH.md.
+- Rather than adapt HierSVA's own generation-task format (different task
+  shape from ours — assertion generation vs. strengthening a stuck
+  property), pulled 3 small modules directly from BaseJump STL itself (the
+  real RTL library HierSVA-DS is built from): `bsg_counter_up_down`,
+  `bsg_fifo_tracker` + `bsg_circular_ptr`, `bsg_round_robin_2_to_2`. Logic
+  kept verbatim; only `BSG_INV_PARAM` macros resolved to concrete values
+  and our own FORMAL block added. `benchmarks_real/`.
+- `bsg_counter_up_down` and `bsg_round_robin_2_to_2`: **PASS directly**
+  under a realistic caller-contract assumption. `bsg_fifo_tracker`
+  (non-power-of-2 circular pointers, 6 slots, to exercise the real
+  wraparound-arithmetic branch): baseline FAIL until a realistic caller
+  contract was added (matches how it's actually gated upstream) → baseline
+  **UNKNOWN** → hunted → **PASS in 2 iterations**. Claude's first candidate
+  (`enq_r ^ deq_r`) was **false, evicted live** — the first eviction of the
+  night on code from outside this project. Second attempt: `rptr_r < 6`,
+  `wptr_r < 6` (the same non-power-of-2 range-bound lesson `fifo.sv` taught
+  it) plus a genuine pointer/latch coupling fact. Written up in PITCH.md
+  and README.md.

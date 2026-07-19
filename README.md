@@ -95,7 +95,9 @@ caught by the sound checker and evicted, which no empirical scorer would have ca
 correct invariant directly (skipping the LLM search) still **TIMEOUTs at
 300s**. Not a search failure — a genuine SMT nonlinear-arithmetic
 scalability wall in the induction step, present even with the right answer
-in hand.
+in hand. `mult8_engine_sweep.py` confirms it's universal: **yices,
+bitwuzla, boolector, z3, and cvc5 all TIMEOUT** on the same query — not one
+solver's quirk.
 
 K-induction alone proves 1/6; with the loop, **6/6**, each in 1–2 LLM iterations
 (numbers from the clean run *after* stripping spoiler comments from the benchmark
@@ -120,6 +122,21 @@ Two details worth noticing in the ledger:
 - **The agent learning the domain's sharp edge (mult):** after the width warning,
   Claude wrote the multiplier invariant as `32'd0 + acc + a_sh * b_rem == 32'd0 + a0 * b0`
   — deliberately padding to 32-bit arithmetic to make the equation exact.
+
+## Tested on real, external silicon RTL
+
+`benchmarks_real/` holds three modules pulled verbatim from **BaseJump STL**
+(a real open-source hardware library used in real chips): `bsg_counter_up_down`
+and `bsg_round_robin_2_to_2` both **PASS directly**; `bsg_fifo_tracker` +
+`bsg_circular_ptr` (non-power-of-2 pointers, 6 slots) baseline **UNKNOWN →
+hunted → PASS in 2 iterations**, with a **live eviction** of a false first
+candidate (`enq_r ^ deq_r`) before finding the real range-bound invariant.
+First real external test of the loop, on code it had never seen. Full
+writeup in `PITCH.md`.
+
+```powershell
+python -m autoagi.cli hunt benchmarks_real/bsg_fifo_tracker.sv
+```
 
 ## Obfuscation ablation — ruling out memorization
 

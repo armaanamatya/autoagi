@@ -64,6 +64,32 @@ seconds of solver time per run. The difficulty ramp:
 
 Full table in README; every solver verdict is a row in `results/ledger.tsv`.
 
+## Tested on real, external silicon RTL — not our own benchmarks
+
+Every result so far is on designs we wrote. So we pulled three small modules
+straight from **BaseJump STL** — a real, open-source hardware standard
+library used in real chips (and the exact library the NeurIPS 2026 benchmark
+HierSVA-DS, cited below, is built from) — verbatim logic, no simplification,
+wrapped in our own FORMAL block:
+
+| module | what it is | result |
+|---|---|---|
+| `bsg_counter_up_down` | credit-counter primitive (used for credits between chips) | **PASS directly** (6.7s) — proven not to overflow/underflow |
+| `bsg_fifo_tracker` + `bsg_circular_ptr` | pointer/full/empty tracking inside real FIFOs | baseline **UNKNOWN → hunted → PASS in 2 iterations**, live eviction |
+| `bsg_round_robin_2_to_2` | round-robins two streams onto a pair of FIFOs | **PASS directly** (4.6s) — proven to be an exact permutation |
+
+The FIFO tracker is the one that mattered: non-power-of-2 circular pointers
+(6 slots, deliberately not a power of 2, to exercise the real wraparound
+arithmetic branch instead of the trivial shortcut) made the mutual-exclusion
+property true but not inductive. Claude's first attempt, `enq_r ^ deq_r`,
+was **false and rejected** — a live eviction, on someone else's code, on the
+first real external test of the night. Its second attempt found the actual
+answer: `rptr_r < 6`, `wptr_r < 6` — the exact same "a non-power-of-2 wrapped
+counter needs an explicit range bound" lesson our own `fifo.sv` taught it —
+plus a genuine structural coupling fact between the pointers and the
+last-operation latches. Re-derived, not recalled, on real code it had never
+seen in this project.
+
 ## Could this be memorization? The obfuscation ablation
 
 The honest version of "is this too easy" isn't "can the LLM fake a solver
@@ -174,6 +200,15 @@ There is no code path from a proposed string to an `assume`. The attack
 above required a second, separately-written injector — the real hunt loop
 has no way to call it.
 
+**This isn't a hypothetical concern.** HierSVA (Nie et al., NeurIPS 2026
+Datasets & Benchmarks Track submission — the closest published academic
+benchmark to this project's task) measured LLM-proposed SVA properties
+across twelve frontier models on 342 real production RTL modules: 82.1%
+prove non-vacuously, meaning **17.9% of the field's best current output
+is vacuous** by their own numbers. We didn't invent this failure mode to
+have something to solve — we built and ran the exact probe for a
+documented, measured problem.
+
 **Then we checked the six accepted proofs weren't vacuous some other way.**
 `vacuity_check.py` holds each proof's accepted invariants as constraints
 (same as the real proof) and asks a solver to find a witness reaching a
@@ -227,23 +262,35 @@ correct invariant (the width-8 scaling of `mult`'s answer) directly.
 **Still TIMEOUT at 300s** (`mult8_direct.py`). That isolates the bottleneck
 cleanly: this isn't Claude failing to find the right invariant — it's a
 genuine SMT nonlinear-arithmetic scalability wall in the induction step,
-present even with the correct answer in hand. Consistent with the earlier
-solver sweep (bitwuzla/boolector/smtbmc all stall by induction depth ~3-4
-regardless of engine). We could have quietly declared this "closed" by
-lowering the proof depth below what's needed to reach `done` — but that
-would have produced exactly the vacuous-PASS failure mode from the section
-above, so we didn't. Honest result: PDR can't attempt this in reasonable
-time, and neither can raw k-induction even with the answer handed to it —
-the frontier is a real tooling boundary, not a capability gap in the agent.
+present even with the correct answer in hand.
+
+Then swept every SMT backend in the OSS CAD Suite against the same
+question (`mult8_engine_sweep.py`): **yices, bitwuzla, boolector, z3, and
+cvc5 — five independent solvers, all given the exact correct invariant
+directly — all TIMEOUT at 300s.** Not one solver's quirk; a universal
+wall. We could have quietly declared this "closed" by lowering the proof
+depth below what's needed to reach `done` — but that would have produced
+exactly the vacuous-PASS failure mode from the section above, so we
+didn't. Honest result: PDR can't attempt this in reasonable time, and
+neither can any of five independent SMT solvers even with the answer
+handed to them — the frontier is a real tooling boundary, not a
+capability gap in the agent, and now about as rigorously confirmed as a
+negative result gets in one evening.
 
 ## What's next
 
-- **Scale:** real HWMCC / open-core designs instead of toys — a live Exa
-  sweep already turned up genuine unseen candidates (YosysHQ's own `IVY`
-  `split_fifo` example, where the authors themselves report *both*
-  k-induction and PDR fail to close in reasonable time; a currently-open
-  k-induction case in a public FIFO-verification suite; a stranger's live,
-  unresolved formal-verification question on Stack Overflow).
+- **Scale:** real HWMCC / open-core designs instead of toys. Two concrete,
+  real targets already scouted: **HierSVA-DS** (Nie et al., NeurIPS 2026)
+  — 342 real, formally-verified BaseJump STL modules with hierarchy depth
+  metadata and a 28-module buggy-RTL subset, the closest published
+  benchmark to this task (theirs is assertion *generation*; ours is
+  strengthening-invariant hunting for a stuck property — a narrower,
+  related problem) — and a live Exa sweep that turned up further unseen
+  candidates (YosysHQ's own `IVY` `split_fifo` example, where the authors
+  themselves report *both* k-induction and PDR fail to close in reasonable
+  time; a currently-open k-induction case in a public FIFO-verification
+  suite; a stranger's live, unresolved formal-verification question on
+  Stack Overflow).
 - **Track 1:** hill-climb the harness (prompt, CEX feedback format) against the
   benchmark family; race solver engines (smtbmc vs PDR) as a portfolio.
 - **Track 3:** extend the vacuity screen from a standalone probe into a
